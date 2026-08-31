@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DSA IDE — Striver A2Z</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+
+<style>
+:root {
+  --bg-0: #010409;
+  --bg-1: #0d1117;
+  --bg-2: #161b22;
+  --bg-3: #21262d;
+  --border: #30363d;
+  --text-1: #e6edf3;
+  --text-2: #8b949e;
+  --text-3: #6e7681;
+  --blue: #388bfd;
+  --blue-h: #58a6ff;
+  --green: #238636;
+  --green-h: #2ea043;
+  --green-t: #3fb950;
+  --red: #da3633;
+  --red-t: #f85149;
+  --orange: #d29922;
+  --purple: #8957e5;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg-1);
+  color: var(--text-1);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+}
+
+/* ===== HEADER ===== */
+.header {
+  height: 48px;
+  background: var(--bg-0);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 12px 0 16px;
+  gap: 12px;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.logo-icon {
+  width: 26px;
+  height: 26px;
+  background: linear-gradient(135deg, #388bfd 0%, #8957e5 100%);
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.divider-v {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+}
+
+.file-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-1);
+}
+
+.file-tab .dot {
+  width: 6px; height: 6px;
+  background: var(--blue);
+  border-radius: 50%;
+}
+
+.git-status {
+  font-size: 11px;
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.git-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--green-t);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.spacer { flex: 1; }
+
+.kbd-hint {
+  font-size: 10px;
+  color: var(--text-3);
+  background: var(--bg-2);
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.btn-run {
+  background: linear-gradient(135deg, var(--blue) 0%, #6366f1 100%);
+  color: white;
+  border: none;
+  padding: 7px 18px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(56,139,253,0.3);
+}
+.btn-run:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(56,139,253,0.4);
+}
+.btn-run:active:not(:disabled) { transform: translateY(0); }
+.btn-run:disabled { opacity: 0.65; cursor: not-allowed; }
+
+/* ===== WORKSPACE ===== */
+.workspace {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ===== EDITOR PANEL ===== */
+.editor-panel {
+  flex: 0 0 57%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+  background: #282a36; /* dracula bg */
+}
+
+.editor-panel-header {
+  height: 32px;
+  background: #1e1f29;
+  border-bottom: 1px solid #44475a;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 8px;
+  font-size: 11px;
+  color: #6272a4;
+  font-family: 'JetBrains Mono', monospace;
+  flex-shrink: 0;
+}
+
+.editor-panel-header .fn {
+  color: #f8f8f2;
+  font-size: 12px;
+}
+
+.editor-wrapper {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.CodeMirror {
+  position: absolute !important;
+  top: 0; left: 0; right: 0; bottom: 0;
+  height: 100% !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 14px !important;
+  line-height: 1.65 !important;
+}
+
+.CodeMirror-scroll { height: 100% !important; }
+
+/* ===== IO PANEL ===== */
+.io-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-2);
+}
+
+.io-section { display: flex; flex-direction: column; }
+
+.stdin-section {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.output-section {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.section-hdr {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.section-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.section-hint {
+  font-size: 10px;
+  color: var(--text-3);
+  font-style: italic;
+}
+
+.status-pill {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 9px;
+  border-radius: 20px;
+  display: none;
+}
+.status-pill.success {
+  background: rgba(63,185,80,0.12);
+  color: var(--green-t);
+  border: 1px solid rgba(63,185,80,0.3);
+  display: inline-block;
+}
+.status-pill.error {
+  background: rgba(248,81,73,0.12);
+  color: var(--red-t);
+  border: 1px solid rgba(248,81,73,0.3);
+  display: inline-block;
+}
+.status-pill.warn {
+  background: rgba(210,153,34,0.12);
+  color: var(--orange);
+  border: 1px solid rgba(210,153,34,0.3);
+  display: inline-block;
+}
+
+#stdinInput {
+  width: 100%;
+  background: var(--bg-1);
+  color: var(--text-1);
+  border: none;
+  outline: none;
+  padding: 10px 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  resize: none;
+  min-height: 72px;
+  max-height: 100px;
+  user-select: text;
+}
+#stdinInput::placeholder { color: var(--text-3); font-style: italic; }
+
+#outputDisplay {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-1);
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+}
+
+.out-placeholder { color: var(--text-3); font-style: italic; }
+.out-success-line { color: var(--green-t); font-style: italic; }
+.out-error { color: var(--red-t); }
+.out-compile { color: var(--orange); }
+
+/* ===== ACTIONS BAR ===== */
+.actions-bar {
+  padding: 10px 14px;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-1);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.actions-bar.visible { display: flex; }
+
+.btn-action {
+  padding: 7px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-2);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.18s;
+}
+.btn-action:hover { border-color: var(--blue-h); color: var(--blue-h); }
+
+.btn-github {
+  margin-left: auto;
+  background: var(--green);
+  color: white;
+  border-color: var(--green);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 16px;
+  box-shadow: 0 2px 8px rgba(35,134,54,0.3);
+}
+.btn-github:hover {
+  background: var(--green-h) !important;
+  border-color: var(--green-h) !important;
+  color: white !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(35,134,54,0.4);
+}
+
+/* ===== MODAL ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(1,4,9,0.8);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.modal-overlay.show {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.modal {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  width: 460px;
+  max-width: 92vw;
+  overflow: hidden;
+  transform: scale(0.93) translateY(16px);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 32px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04);
+}
+.modal-overlay.show .modal {
+  transform: scale(1) translateY(0);
+}
+
+.modal-hdr {
+  padding: 20px 22px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.modal-hdr h2 {
+  font-size: 16px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.modal-close {
+  width: 28px; height: 28px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.modal-close:hover { color: var(--text-1); background: var(--bg-1); }
+
+.modal-body { padding: 20px 22px 16px; }
+
+.form-grp { margin-bottom: 16px; }
+.form-lbl {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-2);
+  margin-bottom: 7px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.form-ctrl {
+  width: 100%;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  color: var(--text-1);
+  padding: 9px 12px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
+.form-ctrl:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(56,139,253,0.12);
+}
+select.form-ctrl {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%238b949e' d='M5 7L0 2h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+input[type=number].form-ctrl::-webkit-inner-spin-button { opacity: 0; }
+
+.preview-card {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 14px;
+  display: none;
+}
+.preview-card.show { display: block; }
+
+.preview-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+}
+.preview-row + .preview-row {
+  border-top: 1px solid var(--bg-3);
+  margin-top: 4px;
+  padding-top: 9px;
+}
+.pk {
+  font-size: 10px;
+  color: var(--text-3);
+  width: 54px;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+.pv {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--blue-h);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modal-ftr {
+  padding: 14px 22px 20px;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.btn-cancel {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-2);
+  border-radius: 7px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.15s;
+}
+.btn-cancel:hover { border-color: var(--text-2); color: var(--text-1); }
+
+.btn-push-submit {
+  padding: 8px 20px;
+  background: var(--green);
+  color: white;
+  border: none;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.18s;
+  box-shadow: 0 2px 8px rgba(35,134,54,0.3);
+}
+.btn-push-submit:hover:not(:disabled) {
+  background: var(--green-h);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(35,134,54,0.4);
+}
+.btn-push-submit:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+/* ===== TOAST ===== */
+.toast {
+  position: fixed;
+  bottom: 22px;
+  right: 22px;
+  padding: 13px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 9999;
+  max-width: 360px;
+  line-height: 1.5;
+  transform: translateY(80px) scale(0.95);
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+  white-space: pre-line;
+}
+.toast.show {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+.toast.success {
+  background: #1a4731;
+  color: #3fb950;
+  border: 1px solid rgba(63,185,80,0.4);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+.toast.error {
+  background: #3d1a1a;
+  color: #f85149;
+  border: 1px solid rgba(248,81,73,0.4);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+
+/* ===== SPINNER ===== */
+.spin {
+  display: inline-block;
+  width: 13px; height: 13px;
+  border: 2px solid rgba(255,255,255,0.25);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.55s linear infinite;
+  vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    DSA IDE
+  </div>
+  <div class="divider-v"></div>
+  <div class="file-tab">
+    <div class="dot"></div>
+    <span id="fileTabName">main.cpp</span>
+  </div>
+  <div class="git-status" id="gitStatus">
+    <div class="git-dot"></div>
+    <span id="gitStatusText">Checking git...</span>
+  </div>
+  <div class="spacer"></div>
+  <span class="kbd-hint">Ctrl+Enter</span>
+  <button class="btn-run" id="runBtn" onclick="runCode()">
+    <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M4 1.5a.5.5 0 0 0-.5.5v12a.5.5 0 0 0 .777.416L14 8 4.277 1.084A.5.5 0 0 0 4 1.5z"/>
+    </svg>
+    Run
+  </button>
+</header>
+
+<!-- WORKSPACE -->
+<main class="workspace">
+
+  <!-- EDITOR PANEL -->
+  <div class="editor-panel">
+    <div class="editor-panel-header">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="#6272a4">
+        <path d="M14 1H2a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zm-1 12H3V3h10v10z"/>
+      </svg>
+      <span class="fn" id="editorFilename">main.cpp</span>
+      <span style="color:#6272a4">— C++</span>
+    </div>
+    <div class="editor-wrapper">
+      <textarea id="editor"></textarea>
+    </div>
+  </div>
+
+  <!-- IO PANEL -->
+  <div class="io-panel">
+
+    <!-- STDIN -->
+    <div class="io-section stdin-section">
+      <div class="section-hdr">
+        <span class="section-title">STDIN</span>
+        <span class="section-hint">💡 Enter input before running</span>
+      </div>
+      <textarea id="stdinInput" placeholder="Enter program input here...&#10;Example: 5"></textarea>
+    </div>
+
+    <!-- OUTPUT -->
+    <div class="io-section output-section">
+      <div class="section-hdr">
+        <span class="section-title">Output</span>
+        <span class="status-pill" id="statusPill"></span>
+      </div>
+      <pre id="outputDisplay"><span class="out-placeholder">Run your code to see the output here...</span></pre>
+    </div>
+
+    <!-- ACTIONS -->
+    <div class="actions-bar" id="actionsBar">
+      <button class="btn-action" onclick="runAgain()">🔄 Run Again</button>
+      <button class="btn-action" onclick="focusEditor()">✏️ Edit Code</button>
+      <button class="btn-action btn-github" onclick="openModal()">🚀 Push to GitHub</button>
+    </div>
+
+  </div>
+</main>
+
+<!-- PUSH MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="overlayClick(event)">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h2>🚀 Push to GitHub</h2>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="form-grp">
+        <label class="form-lbl">📂 Topic / Category</label>
+        <select class="form-ctrl" id="topicSelect" onchange="updatePreview()">
+          <option value="">— Select Topic —</option>
+        </select>
+      </div>
+
+      <div class="form-grp">
+        <label class="form-lbl">🔢 Question Number</label>
+        <input type="number" class="form-ctrl" id="questionNum"
+               placeholder="e.g., 3" min="1" oninput="updatePreview()">
+      </div>
+
+      <!-- Preview -->
+      <div class="preview-card" id="previewCard">
+        <div class="preview-row">
+          <span class="pk">File</span>
+          <span class="pv" id="pvFile"></span>
+        </div>
+        <div class="preview-row">
+          <span class="pk">Commit</span>
+          <span class="pv" id="pvCommit"></span>
+        </div>
+        <div class="preview-row">
+          <span class="pk">Path</span>
+          <span class="pv" id="pvPath"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-ftr">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-push-submit" id="submitBtn" onclick="pushCode()" disabled>
+        🚀 Push Code
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- CodeMirror -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+
+<script>
+// ==============================
+// TOPICS CONFIG
+// ==============================
+const TOPICS = [
+  { v:'patterns',       l:'📐 Patterns',                    p:'pattern-question-no',   f:'01_Learn_Basics/patterns' },
+  { v:'basic_maths',    l:'🔢 Basic Maths',                 p:'maths-question-no',     f:'01_Learn_Basics/basic_maths' },
+  { v:'basic_rec',      l:'🔄 Recursion Basics',            p:'recursion-basic-no',    f:'01_Learn_Basics/basic_recursion' },
+  { v:'basic_hash',     l:'# Basic Hashing',               p:'hashing-question-no',   f:'01_Learn_Basics/basic_hashing' },
+  { v:'sorting',        l:'🔀 Sorting',                     p:'sorting-question-no',   f:'02_Sorting' },
+  { v:'arr_easy',       l:'📊 Arrays — Easy',               p:'array-easy-no',         f:'03_Arrays/easy' },
+  { v:'arr_med',        l:'📊 Arrays — Medium',             p:'array-medium-no',       f:'03_Arrays/medium' },
+  { v:'arr_hard',       l:'📊 Arrays — Hard',               p:'array-hard-no',         f:'03_Arrays/hard' },
+  { v:'bs_1d',          l:'🔍 Binary Search — 1D',          p:'bs-1d-no',              f:'04_Binary_Search/1D_Arrays' },
+  { v:'bs_2d',          l:'🔍 Binary Search — 2D',          p:'bs-2d-no',              f:'04_Binary_Search/2D_Arrays' },
+  { v:'bs_ans',         l:'🔍 Binary Search — Answers',     p:'bs-ans-no',             f:'04_Binary_Search/on_answers' },
+  { v:'str_easy',       l:'🔤 Strings — Easy',              p:'string-easy-no',        f:'05_Strings/easy' },
+  { v:'str_hard',       l:'🔤 Strings — Medium/Hard',       p:'string-hard-no',        f:'05_Strings/medium_hard' },
+  { v:'sll',            l:'🔗 Linked List — Single',        p:'sll-no',                f:'06_Linked_List/single_LL' },
+  { v:'dll',            l:'🔗 Linked List — Double',        p:'dll-no',                f:'06_Linked_List/double_LL' },
+  { v:'ll_med',         l:'🔗 Linked List — Medium',        p:'ll-medium-no',          f:'06_Linked_List/medium_problems' },
+  { v:'ll_hard',        l:'🔗 Linked List — Hard',          p:'ll-hard-no',            f:'06_Linked_List/hard_problems' },
+  { v:'rec_easy',       l:'🔄 Recursion — Easy',            p:'recursion-easy-no',     f:'07_Recursion/easy' },
+  { v:'rec_sub',        l:'🔄 Recursion — Subsequences',    p:'recursion-sub-no',      f:'07_Recursion/subsequences' },
+  { v:'rec_hard',       l:'🔄 Recursion — Hard',            p:'recursion-hard-no',     f:'07_Recursion/hard' },
+  { v:'bit',            l:'⚡ Bit Manipulation',            p:'bit-no',                f:'08_Bit_Manipulation' },
+  { v:'sq_learn',       l:'📚 Stack/Queue — Learning',      p:'sq-learn-no',           f:'09_Stack_and_Queue/learning' },
+  { v:'sq_pifx',        l:'📚 Stack/Queue — Prefix/Infix',  p:'sq-pifx-no',            f:'09_Stack_and_Queue/prefix_infix_postfix' },
+  { v:'sq_mono',        l:'📚 Stack/Queue — Monotonic',     p:'sq-mono-no',            f:'09_Stack_and_Queue/monotonic_stack' },
+  { v:'sw',             l:'🪟 Sliding Window / Two Pointer',p:'sw-no',                 f:'10_Sliding_Window_Two_Pointer' },
+  { v:'heap_learn',     l:'🏔️ Heaps — Learning',           p:'heap-learn-no',         f:'11_Heaps/learning' },
+  { v:'heap_hard',      l:'🏔️ Heaps — Medium/Hard',        p:'heap-hard-no',          f:'11_Heaps/medium_hard' },
+  { v:'greedy_easy',    l:'🎯 Greedy — Easy',              p:'greedy-easy-no',        f:'12_Greedy_Algorithms/easy' },
+  { v:'greedy_hard',    l:'🎯 Greedy — Medium/Hard',       p:'greedy-hard-no',        f:'12_Greedy_Algorithms/medium_hard' },
+  { v:'bt_trav',        l:'🌲 Binary Trees — Traversals',  p:'bt-trav-no',            f:'13_Binary_Trees/traversals' },
+  { v:'bt_med',         l:'🌲 Binary Trees — Medium',      p:'bt-medium-no',          f:'13_Binary_Trees/medium' },
+  { v:'bt_hard',        l:'🌲 Binary Trees — Hard',        p:'bt-hard-no',            f:'13_Binary_Trees/hard' },
+  { v:'bst_con',        l:'🌳 BST — Concepts',             p:'bst-concept-no',        f:'14_Binary_Search_Trees/concepts' },
+  { v:'bst_prob',       l:'🌳 BST — Problems',             p:'bst-prob-no',           f:'14_Binary_Search_Trees/problems' },
+  { v:'graph_learn',    l:'🕸️ Graphs — Learning',          p:'graph-learn-no',        f:'15_Graphs/learning' },
+  { v:'graph_bfsdfs',   l:'🕸️ Graphs — BFS/DFS',          p:'graph-bfsdfs-no',       f:'15_Graphs/bfs_dfs' },
+  { v:'graph_topo',     l:'🕸️ Graphs — Topo Sort',        p:'graph-topo-no',         f:'15_Graphs/topo_sort' },
+  { v:'graph_sp',       l:'🕸️ Graphs — Shortest Path',    p:'graph-sp-no',           f:'15_Graphs/shortest_path' },
+  { v:'graph_mst',      l:'🕸️ Graphs — MST',              p:'graph-mst-no',          f:'15_Graphs/minimum_spanning_tree' },
+  { v:'dp_1d',          l:'🧮 DP — 1D',                   p:'dp-1d-no',              f:'16_Dynamic_Programming/1D_DP' },
+  { v:'dp_2d',          l:'🧮 DP — 2D',                   p:'dp-2d-no',              f:'16_Dynamic_Programming/2D_DP' },
+  { v:'dp_str',         l:'🧮 DP — Strings',              p:'dp-string-no',          f:'16_Dynamic_Programming/DP_on_strings' },
+  { v:'dp_stk',         l:'🧮 DP — Stocks',               p:'dp-stock-no',           f:'16_Dynamic_Programming/DP_on_stocks' },
+  { v:'dp_tree',        l:'🧮 DP — Trees',                p:'dp-tree-no',            f:'16_Dynamic_Programming/DP_on_trees' },
+  { v:'dp_part',        l:'🧮 DP — Partition',            p:'dp-partition-no',       f:'16_Dynamic_Programming/partition_DP' },
+  { v:'tries',          l:'🌐 Tries',                     p:'trie-no',               f:'17_Tries' },
+  { v:'str_adv',        l:'🔤 Strings — Advanced',        p:'string-adv-no',         f:'18_Strings_Advanced' },
+];
+
+// ==============================
+// INIT EDITOR
+// ==============================
+const DEFAULT_CODE = `#include <bits/stdc++.h>
+using namespace std;
+
+int main() {
+    
+    return 0;
+}`;
+
+const editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
+  mode: 'text/x-c++src',
+  theme: 'dracula',
+  lineNumbers: true,
+  autoCloseBrackets: true,
+  matchBrackets: true,
+  styleActiveLine: true,
+  indentUnit: 4,
+  tabSize: 4,
+  indentWithTabs: false,
+  lineWrapping: false,
+  extraKeys: {
+    'Ctrl-Enter': () => runCode(),
+    'Tab': cm => cm.execCommand('indentMore'),
+    'Shift-Tab': cm => cm.execCommand('indentLess'),
+  }
+});
+editor.setValue(DEFAULT_CODE);
+editor.setSize('100%', '100%');
+setTimeout(() => editor.refresh(), 100);
+
+// Populate topics dropdown
+const topicSel = document.getElementById('topicSelect');
+TOPICS.forEach(t => {
+  const o = document.createElement('option');
+  o.value = t.v;
+  o.textContent = t.l;
+  topicSel.appendChild(o);
+});
+
+// ==============================
+// GIT STATUS CHECK
+// ==============================
+async function checkGitStatus() {
+  try {
+    const r = await fetch('/api/git-status');
+    const d = await r.json();
+    const el = document.getElementById('gitStatusText');
+    if (d.initialized) {
+      el.textContent = 'git: ' + (d.lastCommit ? d.lastCommit.substring(0, 30) + '...' : 'initialized');
+    } else {
+      el.textContent = 'git not initialized — run setup_github.bat';
+      document.getElementById('gitStatus').querySelector('.git-dot').style.background = '#f85149';
+    }
+  } catch(e) {
+    document.getElementById('gitStatusText').textContent = 'git status unavailable';
+  }
+}
+checkGitStatus();
+
+// ==============================
+// RUN CODE
+// ==============================
+async function runCode() {
+  const btn = document.getElementById('runBtn');
+  const code = editor.getValue().trim();
+
+  if (!code) { showToast('⚠️ Editor is empty!', 'error'); return; }
+
+  btn.innerHTML = '<span class="spin"></span> Running...';
+  btn.disabled = true;
+
+  const outEl = document.getElementById('outputDisplay');
+  outEl.className = '';
+  outEl.innerHTML = '<span class="out-placeholder">Compiling...</span>';
+  document.getElementById('statusPill').className = 'status-pill';
+  document.getElementById('actionsBar').classList.remove('visible');
+
+  try {
+    const res = await fetch('/api/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, input: document.getElementById('stdinInput').value })
+    });
+    const data = await res.json();
+    renderOutput(data);
+  } catch(err) {
+    renderOutput({ success: false, type: 'error', output: 'Server error: ' + err.message });
+  }
+
+  btn.innerHTML = '<svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M4 1.5a.5.5 0 0 0-.5.5v12a.5.5 0 0 0 .777.416L14 8 4.277 1.084A.5.5 0 0 0 4 1.5z"/></svg> Run';
+  btn.disabled = false;
+}
+
+function renderOutput(data) {
+  const outEl = document.getElementById('outputDisplay');
+  const pill = document.getElementById('statusPill');
+
+  outEl.className = '';
+
+  if (data.type === 'compile_error') {
+    outEl.className = 'out-compile';
+    outEl.textContent = '⚠️  Compilation Error:\n\n' + data.output;
+    pill.textContent = '✗  Compile Error';
+    pill.className = 'status-pill warn';
+  } else if (!data.success) {
+    outEl.className = 'out-error';
+    outEl.textContent = data.output || 'Runtime Error';
+    pill.textContent = '✗  Runtime Error';
+    pill.className = 'status-pill error';
+  } else {
+    const successMsg = '\n\n=== Code Execution Successful ===';
+    outEl.innerHTML = esc(data.output) + '<span class="out-success-line">' + esc(successMsg) + '</span>';
+    pill.textContent = '✓  Success';
+    pill.className = 'status-pill success';
+  }
+
+  document.getElementById('actionsBar').classList.add('visible');
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ==============================
+// ACTION BUTTONS
+// ==============================
+function runAgain() {
+  const outEl = document.getElementById('outputDisplay');
+  outEl.className = '';
+  outEl.innerHTML = '<span class="out-placeholder">Run your code to see the output here...</span>';
+  document.getElementById('statusPill').className = 'status-pill';
+  document.getElementById('actionsBar').classList.remove('visible');
+  runCode();
+}
+
+function focusEditor() {
+  editor.focus();
+}
+
+// ==============================
+// MODAL
+// ==============================
+function openModal() {
+  document.getElementById('modalOverlay').classList.add('show');
+  updatePreview();
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+
+function overlayClick(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
+
+function updatePreview() {
+  const tv = document.getElementById('topicSelect').value;
+  const qn = document.getElementById('questionNum').value;
+  const card = document.getElementById('previewCard');
+  const btn = document.getElementById('submitBtn');
+
+  if (!tv || !qn || qn < 1) {
+    card.classList.remove('show');
+    btn.disabled = true;
+    return;
+  }
+
+  const t = TOPICS.find(x => x.v === tv);
+  if (!t) return;
+
+  const fn = `${t.p}${qn}.cpp`;
+  document.getElementById('pvFile').textContent = fn;
+  document.getElementById('pvCommit').textContent = `${t.p}${qn}`;
+  document.getElementById('pvPath').textContent = t.f + '/';
+  document.getElementById('fileTabName').textContent = fn;
+  document.getElementById('editorFilename').textContent = fn;
+
+  card.classList.add('show');
+  btn.disabled = false;
+}
+
+async function pushCode() {
+  const tv = document.getElementById('topicSelect').value;
+  const qn = document.getElementById('questionNum').value;
+  if (!tv || !qn) return;
+
+  const t = TOPICS.find(x => x.v === tv);
+  const filename = `${t.p}${qn}.cpp`;
+  const code = editor.getValue();
+  const btn = document.getElementById('submitBtn');
+
+  btn.innerHTML = '<span class="spin"></span> Pushing...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, topic: tv, questionNum: qn, filename, folder: t.f })
+    });
+    const data = await res.json();
+    closeModal();
+    showToast(data.success ? '✅ ' + data.message : '❌ ' + data.message, data.success ? 'success' : 'error');
+    if (data.success) checkGitStatus();
+  } catch(err) {
+    closeModal();
+    showToast('❌ Server error: ' + err.message, 'error');
+  }
+
+  btn.innerHTML = '🚀 Push Code';
+  btn.disabled = false;
+}
+
+// ==============================
+// TOAST
+// ==============================
+let toastTimer;
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 4500);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "Striver DSA Auto-Sync (GitHub & Local)",
+  "version": "1.0.0",
+  "description": "Auto-saves and pushes solved Striver A2Z DSA Sheet code to GitHub repo & local project folder.",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "http://localhost:3456/*",
+    "https://takeuforward.org/*",
+    "https://*.takeuforward.org/*",
+    "https://leetcode.com/*",
+    "https://*.geeksforgeeks.org/*",
+    "https://*.naukri.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://takeuforward.org/*",
+        "https://*.takeuforward.org/*",
+        "https://leetcode.com/*",
+        "https://*.geeksforgeeks.org/*",
+        "https://*.naukri.com/*"
+      ],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Striver DSA Sync Settings"
+  }
+}

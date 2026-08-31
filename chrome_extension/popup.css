@@ -1,0 +1,189 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap');
+
+body {
+    margin: 0;
+    padding: 0;
+    width: 330px;
+    background: #0f172a;
+    color: #f8fafc;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    user-select: none;
+}
+
+.popup-container {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.logo .icon {
+    font-size: 24px;
+}
+
+.logo h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: -0.2px;
+}
+
+.logo .subtitle {
+    font-size: 10px;
+    color: #94a3b8;
+    display: block;
+}
+
+.status-card {
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.status-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    box-shadow: 0 0 8px rgba(226, 232, 240, 0.5);
+    flex-shrink: 0;
+}
+
+.status-indicator.online {
+    background: #10b981;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.8);
+}
+
+.status-indicator.offline {
+    background: #ef4444;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
+}
+
+.status-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.status-label {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.status-detail {
+    font-size: 10px;
+    color: #64748b;
+}
+
+.retry-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.retry-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.info-section {
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+}
+
+.info-row .label {
+    color: #94a3b8;
+}
+
+.info-row .value {
+    color: #cbd5e1;
+    font-weight: 500;
+}
+
+.info-row .value.code-text {
+    font-family: 'Fira Code', monospace;
+    font-size: 10px;
+    color: #38bdf8;
+}
+
+.info-row .value.link {
+    color: #818cf8;
+    text-decoration: none;
+}
+
+.info-row .value.link:hover {
+    text-decoration: underline;
+}
+
+.actions-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.action-btn {
+    width: 100%;
+    padding: 10px;
+    border-radius: 10px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.action-btn.primary {
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.action-btn.primary:hover {
+    background: linear-gradient(135deg, #4f46e5, #4338ca);
+}
+
+.footer {
+    text-align: center;
+    font-size: 9.5px;
+    color: #475569;
+    padding-top: 4px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}

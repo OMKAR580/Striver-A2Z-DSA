@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Striver DSA Auto-Sync</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="popup-container">
+        <div class="header">
+            <div class="logo">
+                <span class="icon">🚀</span>
+                <div>
+                    <h2>Striver DSA Sync</h2>
+                    <span class="subtitle">GitHub & Local Folder Auto-Pusher</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-card" id="status-card">
+            <div class="status-indicator" id="status-dot"></div>
+            <div class="status-info">
+                <span class="status-label" id="status-text">Checking server...</span>
+                <span class="status-detail" id="status-detail">http://localhost:3456</span>
+            </div>
+            <button class="retry-btn" id="retry-btn" title="Refresh Connection">🔄</button>
+        </div>
+
+        <div class="info-section">
+            <div class="info-row">
+                <span class="label">Local Project:</span>
+                <span class="value code-text" id="project-path">D:\Stirver_A2Z_DSA</span>
+            </div>
+            <div class="info-row">
+                <span class="label">GitHub Repo:</span>
+                <a class="value link" href="https://github.com/OMKAR580/Striver-A2Z-DSA" target="_blank">OMKAR580/Striver-A2Z-DSA</a>
+            </div>
+            <div class="info-row">
+                <span class="label">Supported Sites:</span>
+                <span class="value">TakeUForward, LeetCode, GFG, Code360</span>
+            </div>
+        </div>
+
+        <div class="actions-section">
+            <button class="action-btn primary" id="trigger-sync-btn">
+                <span>⚡ Sync Active Problem Now</span>
+            </button>
+        </div>
+
+        <div class="footer">
+            <span>Striver's A2Z DSA Companion • v1.0.0</span>
+        </div>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>

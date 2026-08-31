@@ -1,0 +1,19 @@
+# Compiled files
+*.exe
+*.o
+*.out
+a.out
+output*
+
+# Personal Notes (Saved locally only, ignored by Git)
+*.notes.md
+*.note.txt
+.notes/
+
+# VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+

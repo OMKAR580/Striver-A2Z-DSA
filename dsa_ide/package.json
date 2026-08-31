@@ -1,0 +1,12 @@
+{
+  "name": "dsa-ide",
+  "version": "1.0.0",
+  "description": "Local C++ IDE for Striver A2Z DSA",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
