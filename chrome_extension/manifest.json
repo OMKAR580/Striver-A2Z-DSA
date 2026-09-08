@@ -35,5 +35,11 @@
   "action": {
     "default_popup": "popup.html",
     "default_title": "Striver DSA Sync Settings"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["pageScript.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

@@ -114,11 +114,13 @@ app.post('/api/run', (req, res) => {
 
 // ========== PUSH TO GITHUB & LOCAL ==========
 app.post('/api/push', (req, res) => {
-    let { code, filename, folder, questionTitle, questionUrl, language, notes } = req.body;
+    let { code, filename, folder, questionTitle, questionUrl, language, notes, branch } = req.body;
 
     if (!code || !filename || !folder) {
         return res.json({ success: false, message: 'Missing required parameters (code, filename, folder).' });
     }
+
+    const targetBranch = branch || (questionUrl && questionUrl.includes('leetcode.com') ? 'leetcode' : 'main');
 
     // Ensure extension
     const ext = path.extname(filename) || '.cpp';
@@ -186,41 +188,54 @@ app.post('/api/push', (req, res) => {
         return res.json({ success: false, message: 'File save failed: ' + e.message });
     }
 
-    // Git: add ONLY the code file → commit → push (Notes file is ignored by .gitignore)
-    const gitCmd = `cd /d "${DSA_ROOT}" && git add "${targetFile}" && git commit -m "${commitMsg.replace(/"/g, '\\"')}" && git push origin main`;
+    // Git: Handle target branch (leetcode vs main)
+    exec(`cd /d "${DSA_ROOT}" && git rev-parse --abbrev-ref HEAD`, { shell: 'cmd.exe' }, (branchErr, branchStdout) => {
+        const originalBranch = (branchStdout || 'main').trim() || 'main';
 
-    exec(gitCmd, { shell: 'cmd.exe', timeout: 35000 }, (err, stdout, stderr) => {
-        const notesStatusMsg = notesSaved ? '\n📝 Notes: Saved locally (.notes.md)' : '';
+        const gitCmd = `cd /d "${DSA_ROOT}" && (git checkout ${targetBranch} 2>nul || git checkout -b ${targetBranch}) && git add "${targetFile}" && git commit -m "${commitMsg.replace(/"/g, '\\"')}" && git push origin ${targetBranch} && git checkout ${originalBranch}`;
 
-        if (err) {
-            const msg = stderr || stdout || err.message || '';
-            if (msg.includes('nothing to commit') || stdout.includes('nothing to commit')) {
+        exec(gitCmd, { shell: 'cmd.exe', timeout: 45000 }, (err, stdout, stderr) => {
+            // Re-ensure local file is present on disk in local workspace
+            try {
+                if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+                fs.writeFileSync(targetFile, formattedCode, 'utf8');
+            } catch(e){}
+
+            const notesStatusMsg = notesSaved ? '\n📝 Notes: Saved locally (.notes.md)' : '';
+
+            if (err) {
+                const msg = stderr || stdout || err.message || '';
+                if (msg.includes('nothing to commit') || stdout.includes('nothing to commit') || msg.includes('Everything up-to-date')) {
+                    return res.json({ 
+                        success: true,
+                        localSaved: true,
+                        notesSaved: notesSaved,
+                        gitPushed: true,
+                        relFilePath: relFilePath,
+                        branch: targetBranch,
+                        message: `Saved locally! Already up to date on GitHub (${targetBranch} branch).\n📁 ${relFilePath}${notesStatusMsg}` 
+                    });
+                }
                 return res.json({ 
-                    success: true,
+                    success: true, 
                     localSaved: true,
                     notesSaved: notesSaved,
-                    gitPushed: true,
+                    gitPushed: false,
                     relFilePath: relFilePath,
-                    message: `Saved locally! Already up to date on GitHub.\n📁 ${relFilePath}${notesStatusMsg}` 
+                    branch: targetBranch,
+                    message: `Saved locally to ${relFilePath}!${notesStatusMsg}\n(Git push notice: ${stderr.trim() || err.message})` 
                 });
             }
-            return res.json({ 
-                success: true, 
+
+            res.json({
+                success: true,
                 localSaved: true,
                 notesSaved: notesSaved,
-                gitPushed: false,
+                gitPushed: true,
                 relFilePath: relFilePath,
-                message: `Saved locally to ${relFilePath}!${notesStatusMsg}\n(Git push notice: ${stderr.trim() || err.message})` 
+                branch: targetBranch,
+                message: `Code pushed successfully to branch '${targetBranch}'! 🚀\n📁 ${relFilePath}\n💬 Commit: ${commitMsg}${notesStatusMsg}`
             });
-        }
-
-        res.json({
-            success: true,
-            localSaved: true,
-            notesSaved: notesSaved,
-            gitPushed: true,
-            relFilePath: relFilePath,
-            message: `Code pushed successfully! 🚀\n📁 ${relFilePath}\n💬 Commit: ${commitMsg}${notesStatusMsg}`
         });
     });
 });

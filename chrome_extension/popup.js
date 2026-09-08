@@ -30,13 +30,7 @@ document.addEventListener("DOMContentLoaded", () => {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (tabs[0] && tabs[0].id) {
                 chrome.tabs.sendMessage(tabs[0].id, { type: "TRIGGER_STRIVER_SYNC" }, (res) => {
-                    // Fallback to posting message if content script listener is standard window listener
-                    chrome.scripting.executeScript({
-                        target: { tabId: tabs[0].id },
-                        func: () => {
-                            window.postMessage({ type: "TRIGGER_STRIVER_SYNC" }, "*");
-                        }
-                    });
+                    window.close(); // Close toolbar popup so webpage modal is visible
                 });
             }
         });

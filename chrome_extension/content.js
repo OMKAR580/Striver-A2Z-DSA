@@ -57,8 +57,23 @@
         }
 
         if (isSuccess) {
-            console.log(`🎉 Successful submission detected for "${problemTitle}"! Opening sync modal...`);
-            triggerSyncModal();
+            console.log(`🎉 Successful submission detected for "${problemTitle}"! Checking sync status...`);
+
+            // Check if already synced previously
+            try {
+                chrome.storage.local.get(["synced_problems"], (storageData) => {
+                    const syncedMap = storageData.synced_problems || {};
+                    if (syncedMap[problemTitle]) {
+                        console.log(`ℹ️ Problem "${problemTitle}" is already synced in local/GitHub!`);
+                        handledSubmissions.add(problemTitle);
+                        showToast("ℹ️ Already Synced!", `Solution for "${problemTitle}" is already synced to GitHub & Local!\nUse extension toolbar icon if you wish to re-push.`, false);
+                        return;
+                    }
+                    triggerSyncModal();
+                });
+            } catch (e) {
+                triggerSyncModal();
+            }
         }
     }
 
@@ -67,33 +82,25 @@
         if (event.data && event.data.type === "TRIGGER_STRIVER_SYNC") {
             const title = extractProblemTitle();
             if (title) handledSubmissions.delete(title); // allow manual trigger
-            triggerSyncModal();
+            triggerSyncModal(true);
         }
     });
 
-    async function triggerSyncModal() {
+    async function triggerSyncModal(force = false) {
         if (isModalOpen) return;
 
         const problemTitle = extractProblemTitle();
-        if (handledSubmissions.has(problemTitle)) return;
+        if (!force && handledSubmissions.has(problemTitle)) return;
 
         isModalOpen = true;
 
-        const code = extractCode();
-        const language = extractLanguage();
+        const code = await extractCodeAsync();
+        const language = extractLanguage(code);
         const questionUrl = window.location.href;
+        const targetBranch = questionUrl.includes("leetcode.com") ? "leetcode" : "main";
 
-        // Fetch available folders from local server
-        let availableFolders = [];
-        try {
-            const res = await fetch("http://localhost:3456/api/folders");
-            const data = await res.json();
-            if (data.success && data.folders.length > 0) {
-                availableFolders = data.folders;
-            }
-        } catch (e) {
-            console.warn("Could not fetch folders from local server (is server running?):", e);
-        }
+        // Fetch available folders via background service worker (bypasses HTTPS mixed content limits)
+        let availableFolders = await getFoldersFromBackgroundWorker();
 
         if (availableFolders.length === 0) {
             availableFolders = [
@@ -133,10 +140,43 @@
             code,
             language,
             questionUrl,
+            targetBranch,
             availableFolders,
             suggestedFolder,
             suggestedFilename,
             existingNotes
+        });
+    }
+
+    function getFoldersFromBackgroundWorker() {
+        return new Promise((resolve) => {
+            try {
+                chrome.runtime.sendMessage({ type: "GET_FOLDERS" }, (response) => {
+                    if (chrome.runtime.lastError || !response || !response.success) {
+                        resolve([]);
+                    } else {
+                        resolve(response.folders || []);
+                    }
+                });
+            } catch (e) {
+                resolve([]);
+            }
+        });
+    }
+
+    function pushCodeFromBackgroundWorker(payload) {
+        return new Promise((resolve) => {
+            try {
+                chrome.runtime.sendMessage({ type: "PUSH_CODE", data: payload }, (response) => {
+                    if (chrome.runtime.lastError || !response) {
+                        resolve({ success: false, message: "Local server (http://localhost:3456) is not running!\nPlease run start_sync_server.bat" });
+                    } else {
+                        resolve(response);
+                    }
+                });
+            } catch (e) {
+                resolve({ success: false, message: "Extension background messaging error: " + e.message });
+            }
         });
     }
 
@@ -168,6 +208,7 @@
                         <div class="striver-sync-problem-meta">
                             <span>💻 Lang: <strong>${data.language.toUpperCase()}</strong></span>
                             <span>📄 Lines: <strong>${data.code.split('\n').length}</strong></span>
+                            <span>🌿 Git Branch: <strong style="color: #60a5fa;">${data.targetBranch}</strong></span>
                         </div>
                     </div>
 
@@ -195,7 +236,7 @@
                     <div class="striver-sync-actions">
                         <button class="striver-sync-btn striver-sync-btn-secondary" id="striver-sync-cancel-btn">Cancel</button>
                         <button class="striver-sync-btn striver-sync-btn-primary" id="striver-sync-push-btn">
-                            🚀 Save & Push to GitHub
+                            🚀 Save & Push to GitHub (${data.targetBranch})
                         </button>
                     </div>
                 </div>
@@ -233,48 +274,54 @@
 
         pushBtn.addEventListener("click", async () => {
             pushBtn.disabled = true;
-            pushBtn.innerHTML = `⏳ Saving & Pushing...`;
+            pushBtn.innerHTML = `⏳ Saving & Pushing to ${data.targetBranch}...`;
 
             const folder = folderSelect.value;
             const filename = filenameInput.value.trim();
             const notes = notesInput.value.trim();
 
-            try {
-                const response = await fetch("http://localhost:3456/api/push", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        code: data.code,
-                        filename: filename,
-                        folder: folder,
-                        questionTitle: data.problemTitle,
-                        questionUrl: data.questionUrl,
-                        language: data.language,
-                        notes: notes
-                    })
-                });
+            const result = await pushCodeFromBackgroundWorker({
+                code: data.code,
+                filename: filename,
+                folder: folder,
+                questionTitle: data.problemTitle,
+                questionUrl: data.questionUrl,
+                language: data.language,
+                branch: data.targetBranch,
+                notes: notes
+            });
 
-                const result = await response.json();
-                dismissModal(false);
+            dismissModal(false);
 
-                if (result.success) {
-                    // Step 1: Local Save Popup Notification
-                    showToast("📁 Step 1: Saved Locally!", `File: D:/Stirver_A2Z_DSA/${result.relFilePath || (folder + '/' + filename)}${result.notesSaved ? '\n📝 Notes: Saved locally (.notes.md)' : ''}`, false);
+            if (result.success) {
+                // Store in chrome.storage.local to prevent duplicate auto-pushes on re-runs
+                try {
+                    chrome.storage.local.get(["synced_problems"], (storageData) => {
+                        const syncedMap = storageData.synced_problems || {};
+                        syncedMap[data.problemTitle] = {
+                            timestamp: Date.now(),
+                            folder: folder,
+                            filename: filename,
+                            branch: data.targetBranch,
+                            relFilePath: result.relFilePath || (folder + '/' + filename)
+                        };
+                        chrome.storage.local.set({ synced_problems: syncedMap });
+                    });
+                } catch(e){}
 
-                    // Step 2: GitHub Push Popup Notification (with short delay)
-                    setTimeout(() => {
-                        if (result.gitPushed) {
-                            showToast("🚀 Step 2: Pushed to GitHub!", `Repository: OMKAR580/Striver-A2Z-DSA\nCommit: Add solution: ${data.problemTitle}`, false);
-                        } else {
-                            showToast("⚠️ Step 2: Local Saved (Git Pending)", result.message, true);
-                        }
-                    }, 1400);
-                } else {
-                    showToast("❌ Push Failed", result.message, true);
-                }
-            } catch (err) {
-                dismissModal(false);
-                showToast("❌ Connection Error", "Local server (http://localhost:3456) is not running!\nPlease run start_sync_server.bat", true);
+                // Step 1: Local Save Popup Notification
+                showToast("📁 Step 1: Saved Locally!", `File: D:/Stirver_A2Z_DSA/${result.relFilePath || (folder + '/' + filename)}${result.notesSaved ? '\n📝 Notes: Saved locally (.notes.md)' : ''}`, false);
+
+                // Step 2: GitHub Push Popup Notification (with short delay)
+                setTimeout(() => {
+                    if (result.gitPushed) {
+                        showToast(`🚀 Step 2: Pushed to GitHub (${data.targetBranch})!`, `Repository: OMKAR580/Striver-A2Z-DSA\nBranch: ${data.targetBranch}\nCommit: Add solution: ${data.problemTitle}`, false);
+                    } else {
+                        showToast("⚠️ Step 2: Local Saved (Git Pending)", result.message, true);
+                    }
+                }, 1400);
+            } else {
+                showToast("❌ Push Failed", result.message, true);
             }
         });
     }
@@ -317,34 +364,125 @@
         return "DSA_Question";
     }
 
-    function extractCode() {
-        // Monaco Editor lines (used by LeetCode, TakeUForward, GFG)
+    function injectPageScript() {
+        if (document.getElementById("striver-sync-page-script")) return;
+        try {
+            const script = document.createElement("script");
+            script.id = "striver-sync-page-script";
+            script.src = chrome.runtime.getURL("pageScript.js");
+            (document.head || document.documentElement).appendChild(script);
+        } catch (e) {
+            console.error("Failed to inject pageScript.js", e);
+        }
+    }
+    injectPageScript();
+
+    function getCodeFromPageContext() {
+        return new Promise((resolve) => {
+            injectPageScript();
+            const requestId = "req_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
+
+            function onResponse(event) {
+                if (event.detail && event.detail.requestId === requestId) {
+                    window.removeEventListener("STRIVER_SYNC_RESPONSE_PAGE_CODE", onResponse);
+                    resolve(event.detail.code || null);
+                }
+            }
+
+            window.addEventListener("STRIVER_SYNC_RESPONSE_PAGE_CODE", onResponse);
+
+            window.dispatchEvent(new CustomEvent("STRIVER_SYNC_REQUEST_PAGE_CODE", {
+                detail: { requestId: requestId }
+            }));
+
+            // Timeout fallback after 350ms
+            setTimeout(() => {
+                window.removeEventListener("STRIVER_SYNC_RESPONSE_PAGE_CODE", onResponse);
+                resolve(null);
+            }, 350);
+        });
+    }
+
+    function extractCodeFromDOM() {
+        // Monaco Editor lines with strict CSS top coordinate sorting (prevents line inversion)
         const monacoLines = document.querySelectorAll(".monaco-editor .view-line");
         if (monacoLines.length > 0) {
-            return Array.from(monacoLines).map(line => line.textContent.replace(/\u00a0/g, ' ')).join('\n');
+            const linesWithPos = [];
+            monacoLines.forEach((lineElem) => {
+                let topPos = 0;
+                const getTopStyle = (el) => {
+                    const st = el.getAttribute("style") || "";
+                    const m = st.match(/top:\s*([\d.]+)px/i);
+                    return m ? parseFloat(m[1]) : null;
+                };
+
+                let pos = getTopStyle(lineElem);
+                if (pos === null && lineElem.parentElement) {
+                    pos = getTopStyle(lineElem.parentElement);
+                }
+                if (pos === null) pos = 0;
+
+                linesWithPos.push({
+                    top: pos,
+                    text: lineElem.textContent.replace(/\u00a0/g, ' ')
+                });
+            });
+
+            // Sort lines by CSS top position ascending
+            linesWithPos.sort((a, b) => a.top - b.top);
+
+            const uniqueLines = [];
+            let lastTop = null;
+            for (const item of linesWithPos) {
+                if (lastTop === null || Math.abs(item.top - lastTop) > 1) {
+                    uniqueLines.push(item.text);
+                    lastTop = item.top;
+                }
+            }
+
+            const result = uniqueLines.join('\n');
+            if (result.trim().length > 0) return result;
         }
 
-        // CodeMirror (used by GFG, CN)
+        // CodeMirror lines fallback
         const cmLines = document.querySelectorAll(".CodeMirror-line");
         if (cmLines.length > 0) {
             return Array.from(cmLines).map(line => line.textContent).join('\n');
         }
 
-        // Textarea or pre code fallback
-        const textarea = document.querySelector("textarea.code-editor, textarea");
-        if (textarea && textarea.value) {
+        // Textarea fallback
+        const textarea = document.querySelector("textarea.code-editor, textarea.inputarea, textarea");
+        if (textarea && textarea.value && textarea.value.trim().length > 0) {
             return textarea.value;
         }
 
+        // Pre code tag fallback
         const codeTag = document.querySelector("pre code, code");
-        if (codeTag) {
+        if (codeTag && codeTag.textContent.trim().length > 0) {
             return codeTag.textContent;
         }
 
         return "// Solution Code\n";
     }
 
-    function extractLanguage() {
+    async function extractCodeAsync() {
+        // Step 1: Try in-memory Monaco/CodeMirror model via pageScript
+        const pageCode = await getCodeFromPageContext();
+        if (pageCode && pageCode.trim().length > 0) {
+            console.log("✅ Code extracted directly from editor in-memory text model!");
+            return pageCode;
+        }
+
+        // Step 2: Fallback to top-sorted DOM lines
+        console.log("ℹ️ Falling back to top-sorted DOM line extraction...");
+        return extractCodeFromDOM();
+    }
+
+    function extractCode() {
+        return extractCodeFromDOM();
+    }
+
+    function extractLanguage(codeContent = "") {
         const langElem = document.querySelector("[data-cy='lang-select'], select.lang-select, .ant-select-selection-selected-value");
         if (langElem && langElem.textContent) {
             const text = langElem.textContent.toLowerCase();
@@ -355,7 +493,7 @@
         }
 
         // Fallback: Code contents heuristic
-        const code = extractCode();
+        const code = codeContent || extractCodeFromDOM();
         if (code.includes("#include") || code.includes("std::")) return "cpp";
         if (code.includes("public class") || code.includes("System.out")) return "java";
         if (code.includes("def ") || code.includes("import sys")) return "py";
@@ -594,59 +732,93 @@
     }
 
     function extractNotes() {
+        const title = extractProblemTitle().toLowerCase();
+        const cleanTitle = title.replace(/[^a-z0-9]/g, '');
+        const slug = title.replace(/[^a-z0-9]+/g, '-');
+
         // 1. Scrape TakeUForward & LeetCode DOM note elements
         const selectors = [
-            "textarea[placeholder*='note']",
-            "textarea[placeholder*='Note']",
+            "textarea[placeholder*='note' i]",
+            "textarea[placeholder*='Note' i]",
+            "textarea[placeholder*='intuition' i]",
             ".notes-section textarea",
             "#notes-textarea",
             ".note-input",
             ".note-card",
-            "div[class*='note'] textarea",
-            "div[class*='note-content']",
+            "div[class*='note' i] textarea",
+            "div[class*='note' i] p",
+            "div[class*='note' i] span",
+            "div[class*='note-content' i]",
             "div[data-cy='note-content']",
-            ".ant-drawer-body textarea"
+            ".ant-drawer-body textarea",
+            ".ant-drawer-body p",
+            "[data-testid*='note' i]"
         ];
 
         for (const selector of selectors) {
-            const el = document.querySelector(selector);
-            if (el) {
-                const text = el.value || el.textContent;
-                if (text && text.trim()) return text.trim();
-            }
+            try {
+                const el = document.querySelector(selector);
+                if (el) {
+                    const text = el.value || el.textContent;
+                    if (text && text.trim() && !text.toLowerCase().includes("add note")) {
+                        return text.trim();
+                    }
+                }
+            } catch (e) { }
         }
 
-        // 2. Scrape TakeUForward LocalStorage keys
+        // 2. Comprehensive LocalStorage Deep Inspection
         try {
-            const title = extractProblemTitle().toLowerCase();
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
-                if (key && (key.includes("note") || key.includes("sheet") || key.includes("tuf") || key.includes("a2z"))) {
-                    const item = localStorage.getItem(key);
-                    if (!item) continue;
+                if (!key) continue;
 
-                    // If simple text
-                    if (item.length < 2000 && !item.startsWith("{") && !item.startsWith("[")) {
-                        if (item.trim()) return item.trim();
+                const val = localStorage.getItem(key);
+                if (!val) continue;
+
+                // Direct string matching key
+                if (key.toLowerCase().includes(cleanTitle) || key.toLowerCase().includes(slug)) {
+                    if (val.trim() && !val.startsWith("{") && !val.startsWith("[")) {
+                        return val.trim();
                     }
+                }
 
-                    // If JSON object mapping problem ID/title -> note text
+                // Try JSON parsing
+                if (val.startsWith("{") || val.startsWith("[")) {
                     try {
-                        const parsed = JSON.parse(item);
-                        if (typeof parsed === 'object' && parsed !== null) {
-                            for (const [k, v] of Object.entries(parsed)) {
-                                if (k.toLowerCase().includes(title) || title.includes(k.toLowerCase())) {
-                                    if (typeof v === 'string' && v.trim()) return v.trim();
-                                    if (typeof v === 'object' && v && v.note) return v.note.trim();
-                                }
-                            }
-                        }
+                        const parsed = JSON.parse(val);
+                        const foundNote = searchNoteInObject(parsed, cleanTitle, slug);
+                        if (foundNote) return foundNote;
                     } catch (e) { }
                 }
             }
         } catch (e) { }
 
         return "";
+    }
+
+    function searchNoteInObject(obj, cleanTitle, slug) {
+        if (!obj || typeof obj !== 'object') return null;
+
+        for (const [k, v] of Object.entries(obj)) {
+            const lowerK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (lowerK.includes(cleanTitle) || cleanTitle.includes(lowerK) || lowerK.includes(slug)) {
+                if (typeof v === 'string' && v.trim()) return v.trim();
+                if (typeof v === 'object' && v !== null) {
+                    if (v.note && typeof v.note === 'string') return v.note.trim();
+                    if (v.notes && typeof v.notes === 'string') return v.notes.trim();
+                    if (v.content && typeof v.content === 'string') return v.content.trim();
+                    if (v.text && typeof v.text === 'string') return v.text.trim();
+                }
+            }
+
+            // Recursive search
+            if (typeof v === 'object' && v !== null) {
+                const nested = searchNoteInObject(v, cleanTitle, slug);
+                if (nested) return nested;
+            }
+        }
+        return null;
     }
 
 })();

@@ -5,15 +5,22 @@
 // Striver's A2Z DSA Sheet Solution
 // ========================================================
 
-            if(nums[i]<=nums[i+1] && nums[i+1]>=max){
-                max=nums[i+1];
+#include <vector>
+using namespace std;
+
+class Solution {
+public:
+    int secondLargestElement(vector<int>& nums) {
+        int max = -1;
+        int sec_max = -1;
+        for (int i = 0; i < nums.size(); i++) {
+            if (nums[i] > max) {
+                sec_max = max;
+                max = nums[i];
+            } else if (nums[i] < max && nums[i] > sec_max) {
+                sec_max = nums[i];
             }
         }
-        for(int i=0;i<nums.size()-1;i++){
-            if(nums[i]>=nums[i+1] && nums[i+1]<max && nums[i+1]>sec_max){
-        for(int i=0;i<nums.size()-1;i++){
-        int sec_max=-1;
-        int max=0;
-    int secondLargestElement(vector<int>& nums) {
-public:
-class Solution {
+        return sec_max;
+    }
+};
