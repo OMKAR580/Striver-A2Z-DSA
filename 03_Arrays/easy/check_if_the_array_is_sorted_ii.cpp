@@ -17,3 +17,8 @@ class Solution{
             if(flag==nums.size()-1){
                 return true;
             }
+            else{
+                return false;
+            }
+        }
+};
